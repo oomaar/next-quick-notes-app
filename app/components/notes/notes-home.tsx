@@ -1,12 +1,46 @@
 "use client";
 
-import { PlusIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import { MagnifyingGlassIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { useMemo, useState } from "react";
 import type { NoteDTO } from "@/lib/types/NoteDTO";
 import { Button } from "../ui/button";
+import { Dropdown, type DropdownOption } from "../ui/dropdown";
 import { DeleteConfirmModal } from "./delete-confirm-modal";
 import { NoteCard } from "./note-card";
 import { NoteFormModal, type NoteFormValues } from "./note-form-modal";
+
+type FilterKey = "all" | "with-tasks" | "all-done" | "unfinished";
+
+const FILTER_OPTIONS: DropdownOption<FilterKey>[] = [
+  { value: "all", label: "All notes" },
+  { value: "with-tasks", label: "With tasks" },
+  { value: "all-done", label: "All tasks done" },
+  { value: "unfinished", label: "Has unfinished tasks" },
+];
+
+function matchesFilter(note: NoteDTO, filter: FilterKey): boolean {
+  const total = note.tasks?.length ?? 0;
+  const done = note.tasks?.filter((t) => t.isDone).length ?? 0;
+  switch (filter) {
+    case "all":
+      return true;
+    case "with-tasks":
+      return total > 0;
+    case "all-done":
+      return total > 0 && done === total;
+    case "unfinished":
+      return total > 0 && done < total;
+  }
+}
+
+function matchesQuery(note: NoteDTO, q: string): boolean {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return true;
+  return (
+    note.title.toLowerCase().includes(needle) ||
+    note.description.toLowerCase().includes(needle)
+  );
+}
 
 type Props = {
   initialNotes: NoteDTO[];
@@ -16,9 +50,22 @@ export function NotesHome({ initialNotes }: Props) {
   const [notes, setNotes] = useState<NoteDTO[]>(initialNotes);
   const [error, setError] = useState<string | null>(null);
 
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("all");
+
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<NoteDTO | null>(null);
   const [deleting, setDeleting] = useState<NoteDTO | null>(null);
+
+  const visibleNotes = useMemo(
+    () =>
+      notes.filter(
+        (n) => matchesFilter(n, filter) && matchesQuery(n, query),
+      ),
+    [notes, filter, query],
+  );
+
+  const filterActive = filter !== "all" || query.trim().length > 0;
 
   const openCreate = () => {
     setEditing(null);
@@ -31,6 +78,11 @@ export function NotesHome({ initialNotes }: Props) {
   };
 
   const closeForm = () => setFormOpen(false);
+
+  const clearFilters = () => {
+    setQuery("");
+    setFilter("all");
+  };
 
   const handleSave = async (values: NoteFormValues) => {
     try {
@@ -81,7 +133,9 @@ export function NotesHome({ initialNotes }: Props) {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Your notes</h2>
           <p className="text-sm text-muted">
-            {notes.length} {notes.length === 1 ? "note" : "notes"}
+            {filterActive
+              ? `${visibleNotes.length} of ${notes.length} ${notes.length === 1 ? "note" : "notes"}`
+              : `${notes.length} ${notes.length === 1 ? "note" : "notes"}`}
           </p>
         </div>
         <Button onClick={openCreate}>
@@ -95,6 +149,31 @@ export function NotesHome({ initialNotes }: Props) {
         </div>
       )}
 
+      {notes.length > 0 && (
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search title or description…"
+              aria-label="Search notes"
+              className="w-full rounded-md border border-border bg-surface py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted outline-none transition focus:border-foreground focus:ring-2 focus:ring-foreground/10"
+            />
+          </div>
+          <Dropdown<FilterKey>
+            value={filter}
+            onChange={setFilter}
+            options={FILTER_OPTIONS}
+            className="sm:w-56"
+          />
+        </div>
+      )}
+
       {notes.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-12 text-center">
           <p className="text-muted">No notes yet.</p>
@@ -104,9 +183,18 @@ export function NotesHome({ initialNotes }: Props) {
             </Button>
           </div>
         </div>
+      ) : visibleNotes.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border p-12 text-center">
+          <p className="text-muted">No notes match your search.</p>
+          <div className="mt-4 flex justify-center">
+            <Button variant="outlined" onClick={clearFilters}>
+              Clear search &amp; filter
+            </Button>
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {notes.map((note) => (
+          {visibleNotes.map((note) => (
             <NoteCard
               key={note.id}
               note={note}
