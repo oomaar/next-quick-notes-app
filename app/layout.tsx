@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "./components/layout/navbar";
@@ -17,8 +17,26 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Quick Notes",
-  description: "A mock CRUD notes app",
+  title: {
+    default: "Quick Notes",
+    template: "%s · Quick Notes",
+  },
+  description: "Jot down notes and check off tasks — fast.",
+  applicationName: "Quick Notes",
+  keywords: ["notes", "tasks", "todo", "productivity"],
+  openGraph: {
+    title: "Quick Notes",
+    description: "Jot down notes and check off tasks — fast.",
+    type: "website",
+    siteName: "Quick Notes",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({
