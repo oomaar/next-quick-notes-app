@@ -14,6 +14,7 @@ function seed(): Map<string, NoteDTO> {
     id: randomUUID(),
     title: "Welcome",
     description: "This is a mock notes API. Edit or delete me.",
+    isArchived: false,
     tasks: [
       { id: randomUUID(), description: "Try creating a note", isDone: false },
       { id: randomUUID(), description: "Toggle a task", isDone: false },
@@ -38,6 +39,7 @@ export const notesStore = {
       id: randomUUID(),
       title: input.title,
       description: input.description,
+      isArchived: false,
       tasks: input.tasks?.map<TaskDTO>((t) => ({ ...t, id: randomUUID() })),
     };
     store.set(note.id, note);

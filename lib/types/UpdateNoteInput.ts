@@ -4,4 +4,5 @@ export type UpdateNoteInput = Partial<{
   title: string;
   description: string;
   tasks: TaskDTO[];
+  isArchived: boolean;
 }>;

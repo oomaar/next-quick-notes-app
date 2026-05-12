@@ -1,16 +1,29 @@
 "use client";
 
-import { PencilSquareIcon, TrashIcon } from "@heroicons/react/24/outline";
+import {
+  ArchiveBoxArrowDownIcon,
+  ArrowUturnLeftIcon,
+  PencilSquareIcon,
+  TrashIcon,
+} from "@heroicons/react/24/outline";
 import type { NoteDTO } from "@/lib/types/NoteDTO";
 import { Button } from "../ui/button";
 
 type Props = {
   note: NoteDTO;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onArchive?: () => void;
+  onRestore?: () => void;
+  onDelete?: () => void;
 };
 
-export function NoteCard({ note, onEdit, onDelete }: Props) {
+export function NoteCard({
+  note,
+  onEdit,
+  onArchive,
+  onRestore,
+  onDelete,
+}: Props) {
   const total = note.tasks?.length ?? 0;
   const done = note.tasks?.filter((t) => t.isDone).length ?? 0;
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
@@ -34,13 +47,27 @@ export function NoteCard({ note, onEdit, onDelete }: Props) {
           />
         </div>
       )}
-      <div className="mt-4 flex justify-end gap-2">
-        <Button size="sm" variant="outlined" onClick={onEdit}>
-          <PencilSquareIcon className="size-3.5" /> Edit
-        </Button>
-        <Button size="sm" variant="danger" onClick={onDelete}>
-          <TrashIcon className="size-3.5" /> Delete
-        </Button>
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        {onEdit && (
+          <Button size="sm" variant="outlined" onClick={onEdit}>
+            <PencilSquareIcon className="size-3.5" /> Edit
+          </Button>
+        )}
+        {onArchive && (
+          <Button size="sm" variant="warning" onClick={onArchive}>
+            <ArchiveBoxArrowDownIcon className="size-3.5" /> Archive
+          </Button>
+        )}
+        {onRestore && (
+          <Button size="sm" variant="success" onClick={onRestore}>
+            <ArrowUturnLeftIcon className="size-3.5" /> Restore
+          </Button>
+        )}
+        {onDelete && (
+          <Button size="sm" variant="danger" onClick={onDelete}>
+            <TrashIcon className="size-3.5" /> Delete
+          </Button>
+        )}
       </div>
     </article>
   );

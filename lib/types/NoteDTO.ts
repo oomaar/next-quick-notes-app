@@ -4,5 +4,6 @@ export type NoteDTO = {
   id: string;
   title: string;
   description: string;
+  isArchived: boolean;
   tasks?: TaskDTO[];
 };

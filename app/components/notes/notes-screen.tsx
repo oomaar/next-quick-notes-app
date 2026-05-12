@@ -42,11 +42,38 @@ function matchesQuery(note: NoteDTO, q: string): boolean {
   );
 }
 
+type Mode = "active" | "archived";
+
 type Props = {
+  mode: Mode;
   initialNotes: NoteDTO[];
 };
 
-export function NotesHome({ initialNotes }: Props) {
+const COPY: Record<
+  Mode,
+  {
+    heading: string;
+    countNoun: (n: number) => string;
+    emptyTitle: string;
+    searchPlaceholder: string;
+  }
+> = {
+  active: {
+    heading: "Your notes",
+    countNoun: (n) => (n === 1 ? "note" : "notes"),
+    emptyTitle: "No notes yet.",
+    searchPlaceholder: "Search title or description…",
+  },
+  archived: {
+    heading: "Archive",
+    countNoun: (n) => (n === 1 ? "archived note" : "archived notes"),
+    emptyTitle: "No archived notes.",
+    searchPlaceholder: "Search archived notes…",
+  },
+};
+
+export function NotesScreen({ mode, initialNotes }: Props) {
+  const copy = COPY[mode];
   const [notes, setNotes] = useState<NoteDTO[]>(initialNotes);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,6 +139,28 @@ export function NotesHome({ initialNotes }: Props) {
     }
   };
 
+  const flipArchive = async (note: NoteDTO, toArchived: boolean) => {
+    const snapshot = notes;
+    setNotes((prev) => prev.filter((n) => n.id !== note.id));
+    try {
+      const res = await fetch(`/api/notes/${note.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isArchived: toArchived }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      setNotes(snapshot);
+      setError(
+        err instanceof Error
+          ? err.message
+          : toArchived
+            ? "Failed to archive note"
+            : "Failed to restore note",
+      );
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleting) return;
     const id = deleting.id;
@@ -131,16 +180,20 @@ export function NotesHome({ initialNotes }: Props) {
     <div className="mx-auto max-w-5xl p-8">
       <header className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Your notes</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            {copy.heading}
+          </h2>
           <p className="text-sm text-muted">
             {filterActive
-              ? `${visibleNotes.length} of ${notes.length} ${notes.length === 1 ? "note" : "notes"}`
-              : `${notes.length} ${notes.length === 1 ? "note" : "notes"}`}
+              ? `${visibleNotes.length} of ${notes.length} ${copy.countNoun(notes.length)}`
+              : `${notes.length} ${copy.countNoun(notes.length)}`}
           </p>
         </div>
-        <Button onClick={openCreate}>
-          <PlusIcon className="size-4" /> New note
-        </Button>
+        {mode === "active" && (
+          <Button onClick={openCreate}>
+            <PlusIcon className="size-4" /> New note
+          </Button>
+        )}
       </header>
 
       {error && (
@@ -160,7 +213,7 @@ export function NotesHome({ initialNotes }: Props) {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search title or description…"
+              placeholder={copy.searchPlaceholder}
               aria-label="Search notes"
               className="w-full rounded-md border border-border bg-surface py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted outline-none transition focus:border-foreground focus:ring-2 focus:ring-foreground/10"
             />
@@ -176,12 +229,14 @@ export function NotesHome({ initialNotes }: Props) {
 
       {notes.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-12 text-center">
-          <p className="text-muted">No notes yet.</p>
-          <div className="mt-4 flex justify-center">
-            <Button onClick={openCreate}>
-              <PlusIcon className="size-4" /> Create your first note
-            </Button>
-          </div>
+          <p className="text-muted">{copy.emptyTitle}</p>
+          {mode === "active" && (
+            <div className="mt-4 flex justify-center">
+              <Button onClick={openCreate}>
+                <PlusIcon className="size-4" /> Create your first note
+              </Button>
+            </div>
+          )}
         </div>
       ) : visibleNotes.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-12 text-center">
@@ -194,23 +249,35 @@ export function NotesHome({ initialNotes }: Props) {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {visibleNotes.map((note) => (
-            <NoteCard
-              key={note.id}
-              note={note}
-              onEdit={() => openEdit(note)}
-              onDelete={() => setDeleting(note)}
-            />
-          ))}
+          {visibleNotes.map((note) =>
+            mode === "active" ? (
+              <NoteCard
+                key={note.id}
+                note={note}
+                onEdit={() => openEdit(note)}
+                onArchive={() => flipArchive(note, true)}
+                onDelete={() => setDeleting(note)}
+              />
+            ) : (
+              <NoteCard
+                key={note.id}
+                note={note}
+                onRestore={() => flipArchive(note, false)}
+                onDelete={() => setDeleting(note)}
+              />
+            ),
+          )}
         </div>
       )}
 
-      <NoteFormModal
-        open={formOpen}
-        note={editing}
-        onClose={closeForm}
-        onSave={handleSave}
-      />
+      {mode === "active" && (
+        <NoteFormModal
+          open={formOpen}
+          note={editing}
+          onClose={closeForm}
+          onSave={handleSave}
+        />
+      )}
       <DeleteConfirmModal
         target={deleting}
         onCancel={() => setDeleting(null)}
